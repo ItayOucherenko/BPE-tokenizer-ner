@@ -170,15 +170,23 @@ class BPETokenizer(BaseTokenizer):
         for pair, count in least_common_bigrams:
             print(f"    '{pair[0]} + {pair[1]}' appeared {count} times")
 
-        # Get most frequent bigram and convert both words to UTF-8 bytes
-        most_common_bigram, freq = most_common_bigrams[0]
-        word1 = most_common_bigram[0].encode("utf-8")
-        word2 = most_common_bigram[1].encode("utf-8")
+        # Pick the most frequent word bigram whose two words both exist as whole-word tokens.
+        # A word only has a whole-word token if the merges built it, so rarer words may not.
+        chosen = None
+        for (w1, w2), freq in bigram_counter.most_common():
+            word1 = w1.encode("utf-8")
+            word2 = w2.encode("utf-8")
+            word1_token = self.space_token + word1   # space marks word start (like in _get_word_freqs)
+            word2_token = self.space_token + word2
+            if word1_token in self.token_to_id and word2_token in self.token_to_id:
+                chosen = (word1, word2, freq, word1_token, word2_token)
+                break
 
-        # Add space token to mark start of word (like in _get_word_freqs)
-        word1_token = self.space_token + word1
-        word2_token = self.space_token + word2
+        if chosen is None:
+            print("\nNo word bigram has both words in the vocabulary; no word-bigram merge added.")
+            return
 
+        word1, word2, freq, word1_token, word2_token = chosen
         token1 = self.token_to_id[word1_token] - 4
         token2 = self.token_to_id[word2_token] - 4
 
